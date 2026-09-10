@@ -11,6 +11,7 @@ import {
   registerTrackerTools,
   registerItemTools,
   registerItemDetailTools,
+  registerAttachmentTools,
   registerUserTools,
   registerItemWriteTools,
   registerCommentWriteTools,
@@ -39,6 +40,7 @@ registerProjectTools(server, client);
 registerTrackerTools(server, client);
 registerItemTools(server, client);
 registerItemDetailTools(server, client);
+registerAttachmentTools(server, client);
 registerUserTools(server, client);
 registerItemWriteTools(server, client);
 registerCommentWriteTools(server, client);

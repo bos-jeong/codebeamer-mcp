@@ -1,4 +1,5 @@
 import { HttpClient } from "./http-client.js";
+import { fileTypeFromBuffer } from "file-type";
 
 // --- Response types (only fields used by formatters) ---
 
@@ -95,6 +96,13 @@ export interface CbComment {
   commentFormat?: string;
   createdAt?: string;
   createdBy?: CbReference;
+}
+
+export interface CbAttachment {
+  id: number;
+  name?: string;
+  fileSize?: number;
+  mimeType?: string;
 }
 
 export interface CbUser {
@@ -251,6 +259,31 @@ export class CodebeamerClient {
   // Items
   getItem(id: number): Promise<CbItem> {
     return this.http.get(`/items/${id}`, { resource: `item ${id}` });
+  }
+
+  async listItemAttachments(itemId: number): Promise<CbAttachment[]> {
+    const raw = await this.http.get<unknown>(`/items/${itemId}/attachments`, {
+      resource: `attachments for item ${itemId}`,
+    });
+    return toArray<CbAttachment>(raw);
+  }
+
+  async getItemImage(itemId: number, attachmentId: number): Promise<{
+    data: string;
+    mimeType: string;
+  }> {
+    const { data } = await this.http.getBinary(
+      `/items/${itemId}/attachments/${attachmentId}/content`,
+      { resource: `attachment ${attachmentId} for item ${itemId}` },
+    );
+    const detected = await fileTypeFromBuffer(data);
+    if (!detected || !["image/png", "image/jpeg", "image/gif", "image/webp"].includes(detected.mime)) {
+      throw new Error(
+        "Attachment is not a supported image. Use PNG, JPEG, GIF or WebP; " +
+        "export SVG or editable diagrams to one of these formats first.",
+      );
+    }
+    return { data: data.toString("base64"), mimeType: detected.mime };
   }
 
   async listTrackerItems(

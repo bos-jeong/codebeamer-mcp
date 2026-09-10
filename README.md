@@ -4,7 +4,7 @@ An MCP (Model Context Protocol) server for Codebeamer ALM. Allows Claude and oth
 
 [![codebeamer-mcp MCP server](https://glama.ai/mcp/servers/3KniGHtcZ/codebeamer-mcp/badges/card.svg)](https://glama.ai/mcp/servers/3KniGHtcZ/codebeamer-mcp)
 
-## Tools (19)
+## Tools (21)
 
 ### Read
 
@@ -22,6 +22,8 @@ An MCP (Model Context Protocol) server for Codebeamer ALM. Allows Claude and oth
 | `get_item_references` | Get upstream/downstream traceability references (derived from, covers, …) |
 | `get_item_comments` | Get item comments |
 | `get_item_reviews` | Get Review Hub reviews for an item (result, reviewers, votes) |
+| `list_item_attachments` | List an item's attachments with IDs, names and available file metadata |
+| `get_item_image` | Return an attached PNG, JPEG, GIF or WebP as MCP image content for visual analysis (max 5 MiB) |
 | `get_user` | Get user details |
 
 ### Write
@@ -34,6 +36,37 @@ An MCP (Model Context Protocol) server for Codebeamer ALM. Allows Claude and oth
 | `create_association` | Create an association between two items (e.g. depends on, blocks) |
 | `create_reference` | Add a downstream traceability reference between two items |
 | `create_harm` | Create a harm entry in an RM Harms List tracker with IMDRF code and severity (1–5) |
+
+### Images and diagrams
+
+To inspect an image in a tracker item:
+
+1. Find the item ID with `list_tracker_items` or `search_items`.
+2. Call `list_item_attachments` with `{ "itemId": 500 }` to find the image's attachment ID.
+3. Call `get_item_image` with `{ "itemId": 500, "attachmentId": 12 }`.
+
+The image tool downloads the attachment using the configured Codebeamer credentials
+and returns an MCP `image` content block containing Base64 data and the detected MIME
+type, not just an image link. The MCP client/model must support image content to
+display or analyze it. Existing `get_item` responses remain text-only.
+
+Supported formats are PNG, JPEG, GIF and WebP, limited to 5 MiB per downloaded image
+(before Base64 encoding). File type is detected from the bytes even when Codebeamer
+returns `application/octet-stream`. Access restrictions and missing attachments are
+reported as tool errors.
+
+Images embedded in item descriptions are supported when they are stored as item
+attachments. External image URLs, tracker-level wiki/document images, SVG and editable
+diagram source files are not rendered; export these diagrams to a supported image
+format and attach them to the item first.
+
+The tools use the REST API v3 endpoints `GET /items/{itemId}/attachments` and
+`GET /items/{itemId}/attachments/{attachmentId}/content`.
+
+To use local source changes, run `npm run build`, point the MCP configuration to
+`node` with an absolute path to `dist/index.js`, and restart the MCP server.
+Configurations using `npx codebeamer-mcp` still run the published package, not this
+local checkout.
 
 ## Installation
 

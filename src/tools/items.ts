@@ -90,7 +90,8 @@ export function registerItemTools(
       description:
         "Get a lightweight summary of a Codebeamer work item: ID, name, tracker, status and description. " +
         "Use this when you only need to identify the item and read its description. " +
-        "For priority, assignees, dates, story points, custom fields and test steps, call get_item_details.",
+        "For priority, assignees, dates, story points, custom fields and test steps, call get_item_details. " +
+        "To view attached images or diagrams, use list_item_attachments followed by get_item_image.",
       inputSchema: {
         itemId: z
           .number()

@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "file-type": "^21.3.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {

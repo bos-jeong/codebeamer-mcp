@@ -11,6 +11,13 @@ export interface BodyRequestOptions extends RequestOptions {
   formData?: Record<string, string>;
 }
 
+export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+
+export interface BinaryResponse {
+  data: Buffer;
+  contentType: string;
+}
+
 export class HttpClient {
   private readonly authHeader: string;
 
@@ -23,6 +30,39 @@ export class HttpClient {
 
   async get<T>(path: string, options: RequestOptions = {}): Promise<T> {
     return this.request<T>("GET", path, options);
+  }
+
+  async getBinary(path: string, options: RequestOptions = {}): Promise<BinaryResponse> {
+    const response = await this.requestResponse("GET", path, options, "*/*");
+    const reader = response.body?.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+      if (Number(response.headers.get("content-length")) > MAX_ATTACHMENT_BYTES) {
+        throw new Error("Attachment exceeds the 5 MiB download limit.");
+      }
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > MAX_ATTACHMENT_BYTES) {
+            throw new Error("Attachment exceeds the 5 MiB download limit.");
+          }
+          chunks.push(value);
+        }
+      }
+    } finally {
+      if (reader) {
+        void reader.cancel().catch(() => {});
+        reader.releaseLock();
+      }
+    }
+    return {
+      data: Buffer.concat(chunks),
+      contentType: (response.headers.get("content-type") ?? "application/octet-stream")
+        .split(";")[0].trim().toLowerCase(),
+    };
   }
 
   async post<T>(path: string, options: BodyRequestOptions = {}): Promise<T> {
@@ -38,6 +78,19 @@ export class HttpClient {
     path: string,
     options: BodyRequestOptions = {},
   ): Promise<T> {
+    const response = await this.requestResponse(method, path, options);
+    if (response.status === 204) return undefined as T;
+    const text = await response.text();
+    if (text === "") return undefined as T;
+    return JSON.parse(text) as T;
+  }
+
+  private async requestResponse(
+    method: string,
+    path: string,
+    options: BodyRequestOptions,
+    accept = "application/json",
+  ): Promise<Response> {
     const url = new URL(`${this.config.baseUrl}${path}`);
 
     if (options.params) {
@@ -50,7 +103,7 @@ export class HttpClient {
 
     const headers: Record<string, string> = {
       Authorization: this.authHeader,
-      Accept: "application/json",
+      Accept: accept,
       "User-Agent": "codebeamer-mcp/0.1.0",
     };
 
@@ -94,9 +147,6 @@ export class HttpClient {
       throw mapHttpError(response.status, body, options.resource ?? path);
     }
 
-    if (response.status === 204) return undefined as T;
-    const text = await response.text();
-    if (text === "") return undefined as T;
-    return JSON.parse(text) as T;
+    return response;
   }
 }
