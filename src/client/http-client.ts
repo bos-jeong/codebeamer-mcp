@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import type { Config } from "../config.js";
 import { mapHttpError } from "./errors.js";
 
@@ -12,6 +13,21 @@ export interface BodyRequestOptions extends RequestOptions {
 }
 
 export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+
+const MAX_RATE_LIMIT_RETRIES = 3;
+const MAX_RETRY_WAIT_MS = 30_000;
+
+function retryDelayMs(header: string | null, retry: number): number {
+  const value = header?.trim();
+  if (value && /^\d+$/.test(value)) {
+    return Number(value) * 1000;
+  }
+  if (value && /^[A-Za-z]/.test(value)) {
+    const timestamp = Date.parse(value);
+    if (Number.isFinite(timestamp)) return Math.max(0, timestamp - Date.now());
+  }
+  return 1000 * 2 ** retry;
+}
 
 export interface BinaryResponse {
   data: Buffer;
@@ -120,23 +136,36 @@ export class HttpClient {
       init.body = fd;
     }
 
-    let response: Response;
-    try {
-      response = await fetch(url.toString(), init);
-    } catch (err) {
-      const cause = err instanceof Error ? err.message : String(err);
-      const nested =
-        err instanceof Error &&
-        err.cause instanceof Error
-          ? ` (${err.cause.message})`
-          : "";
-      throw new Error(
-        `Cannot connect to Codebeamer at ${this.config.baseUrl}. ` +
-          `Check that CB_URL is correct and the server is reachable. Cause: ${cause}${nested}`,
-      );
-    }
+    let totalWaitMs = 0;
+    for (let attempt = 0; ; attempt++) {
+      let response: Response;
+      try {
+        response = await fetch(url.toString(), init);
+      } catch (err) {
+        const cause = err instanceof Error ? err.message : String(err);
+        const nested =
+          err instanceof Error &&
+          err.cause instanceof Error
+            ? ` (${err.cause.message})`
+            : "";
+        throw new Error(
+          `Cannot connect to Codebeamer at ${this.config.baseUrl}. ` +
+            `Check that CB_URL is correct and the server is reachable. Cause: ${cause}${nested}`,
+        );
+      }
 
-    if (!response.ok) {
+      if (response.ok) return response;
+
+      if (method === "GET" && response.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+        const waitMs = retryDelayMs(response.headers.get("Retry-After"), attempt);
+        if (waitMs <= MAX_RETRY_WAIT_MS - totalWaitMs) {
+          void response.body?.cancel().catch(() => {});
+          totalWaitMs += waitMs;
+          await delay(waitMs);
+          continue;
+        }
+      }
+
       const text = await response.text();
       let body: unknown;
       try {
@@ -146,7 +175,5 @@ export class HttpClient {
       }
       throw mapHttpError(response.status, body, options.resource ?? path);
     }
-
-    return response;
   }
 }

@@ -110,7 +110,7 @@ describe("HttpClient", () => {
   it("maps 429 to CbRateLimitError", async () => {
     mockServer.use(
       http.get(`${BASE}/limited`, () =>
-        HttpResponse.json({}, { status: 429 }),
+        HttpResponse.json({}, { status: 429, headers: { "Retry-After": "0" } }),
       ),
     );
 

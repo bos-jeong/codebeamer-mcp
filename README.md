@@ -68,6 +68,23 @@ To use local source changes, run `npm run build`, point the MCP configuration to
 Configurations using `npx codebeamer-mcp` still run the published package, not this
 local checkout.
 
+### Rate limits and automatic retries
+
+Read requests (`GET`), including image downloads, automatically retry HTTP 429
+responses up to 3 times after the initial request (4 attempts total).
+
+- A valid `Retry-After` header takes priority, supporting seconds or an HTTP date.
+- Missing or invalid headers use exponential backoff: 1, 2, then 4 seconds.
+- Total retry waiting is limited to 30 seconds per request. If the server asks for
+  more than the remaining budget, the request fails with a rate limit error instead
+  of retrying earlier than requested. Network time is not included in this budget.
+- After retries are exhausted, the rate limit error is returned to the MCP client.
+- Write requests (`POST` and `PUT`) are not automatically retried, avoiding duplicate
+  operations. Other HTTP errors and connection failures are not retried either.
+
+Retries are per request; this does not impose a shared rate limit on concurrent
+tool calls. No additional environment variables are required.
+
 ## Installation
 
 ### Requirements
