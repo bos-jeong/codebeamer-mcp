@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   formatItemList,
+  formatItemSummary,
   formatItem,
   formatRelations,
   formatReferences,
@@ -20,6 +21,22 @@ describe("formatItemList", () => {
     expect(text).toContain("| 501 |");
     expect(text).toContain("Closed");
     expect(text).toContain("2 total");
+  });
+});
+
+describe("formatItemSummary", () => {
+  it("includes the parent name before the description", () => {
+    const text = formatItemSummary(makeItem({
+      parent: { id: 202707, name: "Block Diagram" },
+    }));
+    expect(text).toContain("- **Parent:** Block Diagram\n\n### Description");
+  });
+
+  it("omits the parent line when there is no parent", () => {
+    const text = formatItemSummary(makeItem({ parent: undefined }));
+    expect(text).not.toContain("**Parent:**");
+    expect(text).toContain("**Tracker:**");
+    expect(text).toContain("### Description");
   });
 });
 

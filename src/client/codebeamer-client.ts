@@ -64,6 +64,7 @@ export interface CbItem {
   description?: string | { markup?: string; value?: string };
   descriptionFormat?: string;
   tracker?: CbReference;
+  parent?: CbReference;
   project?: CbReference;
   status?: CbReference;
   priority?: CbReference;

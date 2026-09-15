@@ -33,6 +33,10 @@ export function formatItemSummary(item: CbItem): string {
     `- **Status:** ${item.status?.name ?? "?"}`,
   ];
 
+  if (item.parent?.name) {
+    lines.push(`- **Parent:** ${item.parent.name}`);
+  }
+
   const description =
     typeof item.description === "string"
       ? item.description
