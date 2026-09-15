@@ -14,6 +14,11 @@ let server: McpServer;
 let mcpClient: Client;
 
 beforeEach(async () => {
+  mockServer.use(http.get(`${BASE}/items/500`, () => HttpResponse.json({
+    id: 500,
+    description: "[!diagram.png!]",
+    descriptionFormat: "Wiki",
+  })));
   server = new McpServer({ name: "attachment-test", version: "1.0.0" });
   registerAttachmentTools(server, new CodebeamerClient(new HttpClient({
     baseUrl: BASE,
@@ -55,7 +60,54 @@ describe("attachment MCP tools", () => {
   it("handles items without attachments", async () => {
     mockServer.use(http.get(`${BASE}/items/500/attachments`, () => HttpResponse.json([])));
     const result = await mcpClient.callTool({ name: "list_item_attachments", arguments: { itemId: 500 } });
-    expect(result.content).toEqual([{ type: "text", text: "No attachments found for item 500." }]);
+    expect(result.content).toEqual([{ type: "text", text: "No image attachments referenced in the current Wiki description for item 500." }]);
+  });
+
+  it("lists only images embedded in the current description", async () => {
+    mockServer.use(
+      http.get(`${BASE}/items/500`, () => HttpResponse.json({
+        id: 500,
+        descriptionFormat: "Wiki",
+        description: "[Diagram|https://example.com/diagram][!b8dbf767fd38ed3df7d845c02d8620f9.png!]\r\n[!BLK_CPU_diagram_N1B0-BLK_CPU.drawio.png#c14843124d362edc5a1096868651fc91!]\r\n[linked.png|linked.png] 53446011e9334d93d3d7104f4c77d2d9.png",
+      })),
+      http.get(`${BASE}/items/500/attachments`, () => HttpResponse.json({
+        page: 1,
+        pageSize: 5,
+        total: 5,
+        attachments: [
+          { id: 439823, name: "b8dbf767fd38ed3df7d845c02d8620f9.png", size: 139 },
+          { id: 439825, name: "53446011e9334d93d3d7104f4c77d2d9.png", size: 108196 },
+          { id: 441167, name: "BLK_CPU_diagram_N1B0-BLK_CPU.drawio.png", size: 782907, sha512: "c14843124d362edc5a1096868651fc91e596a8d21687586494c41db3cfc5c1e654a0337b214e2abbebdfd8393facaa216b6d210b6fdd7c9c1aede942bc01e527" },
+          { id: 441168, name: "BLK_CPU_diagram_N1B0-BLK_CPU.drawio.png", sha512: "different" },
+          { id: 14, name: "linked.png" },
+        ],
+      })),
+    );
+    const result = await mcpClient.callTool({ name: "list_item_attachments", arguments: { itemId: 500 } });
+    expect(result.isError).not.toBe(true);
+    expect(result.content).toEqual([{
+      type: "text",
+      text: "## Attachments for item 500\n\n- [439823] b8dbf767fd38ed3df7d845c02d8620f9.png (139 bytes)\n- [441167] BLK_CPU_diagram_N1B0-BLK_CPU.drawio.png (782907 bytes)",
+    }]);
+  });
+
+  it.each([
+    { description: "" },
+    { description: null },
+    {},
+    { description: "[diagram.png|diagram.png] diagram.png", descriptionFormat: "Wiki" },
+    { description: "[!diagram.png!]", descriptionFormat: "PlainText" },
+    { description: '<img src="diagram.png">', descriptionFormat: "Html" },
+    { description: "[!diagram.png#abcdef!]", descriptionFormat: "Wiki" },
+    { description: '[!https://example.com/diagram.png!]', descriptionFormat: "Wiki" },
+  ])("excludes attachments without current Wiki image references: %j", async (item) => {
+    mockServer.use(
+      http.get(`${BASE}/items/500`, () => HttpResponse.json({ id: 500, ...item })),
+      http.get(`${BASE}/items/500/attachments`, () => HttpResponse.json([{ id: 12, name: "diagram.png" }])),
+    );
+    const result = await mcpClient.callTool({ name: "list_item_attachments", arguments: { itemId: 500 } });
+    expect(result.isError).not.toBe(true);
+    expect(result.content).toEqual([{ type: "text", text: "No image attachments referenced in the current Wiki description for item 500." }]);
   });
 
   it.each(["image/png", "application/octet-stream", "text/plain"])(

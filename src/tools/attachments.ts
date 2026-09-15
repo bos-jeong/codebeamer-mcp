@@ -8,9 +8,10 @@ export function registerAttachmentTools(server: McpServer, client: CodebeamerCli
     {
       title: "List Item Attachments",
       description:
-        "List attachments of a Codebeamer tracker item, including attached diagrams and images. " +
+        "List only image attachments referenced in a Codebeamer item's current Wiki description. " +
         "Use the returned attachment ID with get_item_image to view an image. " +
-        "Images embedded in the description are supported when stored as item attachments.",
+        "Matches [!filename!] and [!filename#hash!] references. Excludes unreferenced attachments, " +
+        "ordinary links and external images. Non-Wiki descriptions return an empty list.",
       inputSchema: {
         itemId: z.number().int().positive().describe("Numeric item ID"),
       },
@@ -19,7 +20,7 @@ export function registerAttachmentTools(server: McpServer, client: CodebeamerCli
     async ({ itemId }) => {
       const attachments = await client.listItemAttachments(itemId);
       const text = attachments.length === 0
-        ? `No attachments found for item ${itemId}.`
+        ? `No image attachments referenced in the current Wiki description for item ${itemId}.`
         : `## Attachments for item ${itemId}\n\n` + attachments.map((attachment) => {
           const details = [
             attachment.mimeType,

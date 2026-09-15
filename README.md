@@ -22,7 +22,7 @@ An MCP (Model Context Protocol) server for Codebeamer ALM. Allows Claude and oth
 | `get_item_references` | Get upstream/downstream traceability references (derived from, covers, …) |
 | `get_item_comments` | Get item comments |
 | `get_item_reviews` | Get Review Hub reviews for an item (result, reviewers, votes) |
-| `list_item_attachments` | List an item's attachments with IDs, names and available file metadata |
+| `list_item_attachments` | List image attachments referenced in the current Wiki description, with IDs, names and available file metadata |
 | `get_item_image` | Return an attached PNG, JPEG, GIF or WebP as MCP image content for visual analysis (max 5 MiB) |
 | `get_user` | Get user details |
 
@@ -55,12 +55,19 @@ Supported formats are PNG, JPEG, GIF and WebP, limited to 5 MiB per downloaded i
 returns `application/octet-stream`. Access restrictions and missing attachments are
 reported as tool errors.
 
-Images embedded in item descriptions are supported when they are stored as item
-attachments. External image URLs, tracker-level wiki/document images, SVG and editable
-diagram source files are not rendered; export these diagrams to a supported image
-format and attach them to the item first.
+`list_item_attachments` only returns attachments referenced as images in the current
+Wiki description, using `[!filename!]` or `[!filename#hash!]`. Filenames must match
+exactly; when a hash is present, it must match a prefix of the attachment's `sha512`.
+Images removed from the description, ordinary file links and files only attached to
+the item are excluded. Empty or non-Wiki descriptions return no matches. HTML
+descriptions and other image-reference syntax are not supported by this filter.
 
-The tools use the REST API v3 endpoints `GET /items/{itemId}/attachments` and
+External image URLs, tracker-level wiki/document images, SVG and editable
+diagram source files are not rendered; export these diagrams to a supported image
+format and insert them into the item's Wiki description first.
+
+The tools use the REST API v3 endpoints `GET /items/{itemId}`,
+`GET /items/{itemId}/attachments` and
 `GET /items/{itemId}/attachments/{attachmentId}/content`.
 
 To use local source changes, run `npm run build`, point the MCP configuration to

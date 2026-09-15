@@ -62,6 +62,7 @@ export interface CbItem {
   name: string;
   typeName?: string;
   description?: string | { markup?: string; value?: string };
+  descriptionFormat?: string;
   tracker?: CbReference;
   project?: CbReference;
   status?: CbReference;
@@ -102,6 +103,8 @@ export interface CbAttachment {
   id: number;
   name?: string;
   fileSize?: number;
+  size?: number;
+  sha512?: string;
   mimeType?: string;
 }
 
@@ -262,10 +265,27 @@ export class CodebeamerClient {
   }
 
   async listItemAttachments(itemId: number): Promise<CbAttachment[]> {
+    const item = await this.getItem(itemId);
+    if (item.descriptionFormat && item.descriptionFormat !== "Wiki") return [];
+    const description = typeof item.description === "string"
+      ? item.description
+      : item.description?.value ?? item.description?.markup ?? "";
+    const references = Array.from(description.matchAll(/\[!([^!\[\]\r\n]+)!\]/g), (match) => {
+      const [name, hash] = match[1].split("#", 2);
+      return { name, hash };
+    }).filter(({ name }) => !/[/:\\]/.test(name));
+    if (references.length === 0) return [];
+
     const raw = await this.http.get<unknown>(`/items/${itemId}/attachments`, {
       resource: `attachments for item ${itemId}`,
     });
-    return toArray<CbAttachment>(raw);
+    return toArray<CbAttachment>(raw)
+      .filter((attachment) => references.some(({ name, hash }) =>
+        attachment.name === name && (!hash || (
+          /^[a-f0-9]+$/i.test(hash) && attachment.sha512?.toLowerCase().startsWith(hash.toLowerCase())
+        )),
+      ))
+      .map((attachment) => ({ ...attachment, fileSize: attachment.fileSize ?? attachment.size }));
   }
 
   async getItemImage(itemId: number, attachmentId: number): Promise<{
