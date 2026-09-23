@@ -1,4 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { http, HttpResponse } from "msw";
+import { mockServer } from "../../setup.js";
+import { makeTracker } from "../../mocks/fixtures/trackers.js";
 import { HttpClient } from "../../../src/client/http-client.js";
 import { CodebeamerClient } from "../../../src/client/codebeamer-client.js";
 import {
@@ -27,6 +30,82 @@ describe("list_trackers", () => {
     expect(text).toContain("1 total");
     expect(text).toContain("Bug Tracker");
     expect(text).toContain("100");
+    expect(text).toContain("| Folder |");
+    expect(text).toContain("| Development |");
+  });
+
+  it("maps nested folders through tracker children without changing list order", async () => {
+    const requests: string[] = [];
+    mockServer.use(
+      http.get(`${BASE}/projects/:projectId/trackers`, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get("page")).toBe("2");
+        expect(url.searchParams.get("pageSize")).toBe("10");
+        return HttpResponse.json([206240, 372586, 32527, 99, 98, 97].map((id) => ({
+          id, name: `Tracker ${id}`, type: "TrackerReference",
+        })));
+      }),
+      http.get(`${BASE}/trackers/tree`, ({ request }) => {
+        requests.push(new URL(request.url).searchParams.get("projectId")!);
+        return HttpResponse.json([
+          { isFolder: true, text: "Empty" },
+          { isFolder: true, text: "Requirements", children: [
+            { isFolder: true, text: "Safety", children: [
+              { trackerId: 206240, children: [{ trackerId: 372586 }] },
+            ] },
+          ] },
+          { isFolder: true, text: "Templates", children: [{ trackerId: 32527 }] },
+          { trackerId: 99, children: [{ trackerId: 97 }] },
+        ]);
+      }),
+    );
+
+    const result = await makeClient().listTrackers(10, 2, 10);
+    expect(requests).toEqual(["10"]);
+    expect(result.map(({ id, folderPath }) => ({ id, folderPath }))).toEqual([
+      { id: 206240, folderPath: "Requirements / Safety" },
+      { id: 372586, folderPath: "Requirements / Safety" },
+      { id: 32527, folderPath: "Templates" },
+      { id: 99, folderPath: "/" },
+      { id: 98, folderPath: undefined },
+      { id: 97, folderPath: "/" },
+    ]);
+    const text = formatTrackerList(result);
+    expect(text).toContain("| 372586 | Tracker 372586 | - | - | Requirements / Safety |");
+    expect(text).toContain("| 98 | Tracker 98 | - | - | Unknown |");
+    expect(text).toContain("| 99 | Tracker 99 | - | - | / |");
+  });
+
+  it("leaves folder information unknown when the tree is empty", async () => {
+    mockServer.use(http.get(`${BASE}/trackers/tree`, () => HttpResponse.json([])));
+    const result = await makeClient().listTrackers(1, 1, 25);
+    expect(result).toHaveLength(1);
+    expect(result[0].folderPath).toBeUndefined();
+    expect(formatTrackerList(result)).toContain("| Unknown |");
+  });
+
+  it("skips the tree request for an empty tracker list", async () => {
+    let treeRequests = 0;
+    mockServer.use(
+      http.get(`${BASE}/projects/:projectId/trackers`, () => HttpResponse.json([])),
+      http.get(`${BASE}/trackers/tree`, () => {
+        treeRequests += 1;
+        return HttpResponse.json([]);
+      }),
+    );
+    const result = await makeClient().listTrackers(1, 1, 25);
+    expect(formatTrackerList(result)).toContain("No trackers found");
+    expect(treeRequests).toBe(0);
+  });
+
+  it("propagates a tree lookup failure instead of claiming trackers are at root", async () => {
+    mockServer.use(http.get(`${BASE}/trackers/tree`, () => new HttpResponse(null, { status: 403 })));
+    await expect(makeClient().listTrackers(1, 1, 25)).rejects.toThrow();
+  });
+
+  it("escapes folder names in the markdown table", () => {
+    const text = formatTrackerList([makeTracker({ folderPath: "Design | Review\r\nSafety" })]);
+    expect(text).toContain("| Design \\| Review Safety |");
   });
 });
 

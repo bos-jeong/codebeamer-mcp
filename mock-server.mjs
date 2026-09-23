@@ -189,6 +189,17 @@ const server = createServer((req, res) => {
     return json(res, list.slice((p - 1) * ps, p * ps));
   }
 
+  if (path === "/v3/trackers/tree") {
+    const projectId = Number(url.searchParams.get("projectId"));
+    const filtered = trackers.filter(tracker => tracker.project.id === projectId);
+    const list = filtered.length ? filtered : trackers;
+    return json(res, [{
+      isFolder: true,
+      text: "Development",
+      children: list.map(tracker => ({ trackerId: tracker.id })),
+    }]);
+  }
+
   // Tracker fields
   const trackerFieldsMatch = path.match(/^\/v3\/trackers\/(\d+)\/fields$/);
   if (trackerFieldsMatch) {
@@ -258,6 +269,7 @@ server.listen(PORT, () => {
   console.log("  GET /v3/projects");
   console.log("  GET /v3/projects/:id");
   console.log("  GET /v3/projects/:id/trackers");
+  console.log("  GET /v3/trackers/tree?projectId=:id");
   console.log("  GET /v3/trackers/:id");
   console.log("  GET /v3/trackers/:id/fields");
   console.log("  GET /v3/trackers/:id/items");

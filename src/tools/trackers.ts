@@ -16,6 +16,7 @@ export function registerTrackerTools(
       title: "List Trackers",
       description:
         "List all trackers (Requirements, Bugs, Test Cases, etc.) in a Codebeamer project. " +
+        "Includes folder paths from the project tracker tree; '/' means root and 'Unknown' means absent from the tree. " +
         "Use the returned tracker IDs to list items or get tracker details.",
       inputSchema: {
         projectId: z

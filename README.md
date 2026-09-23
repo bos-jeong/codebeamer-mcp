@@ -12,7 +12,7 @@ An MCP (Model Context Protocol) server for Codebeamer ALM. Allows Claude and oth
 |---|---|
 | `list_projects` | List all projects |
 | `get_project` | Get project details |
-| `list_trackers` | List trackers in a project |
+| `list_trackers` | List trackers in a project with their folder paths |
 | `get_tracker` | Get tracker details |
 | `list_tracker_items` | List items in a tracker |
 | `search_items` | Full-text / cbQL search |
@@ -25,6 +25,12 @@ An MCP (Model Context Protocol) server for Codebeamer ALM. Allows Claude and oth
 | `list_item_attachments` | List image attachments referenced in the current Wiki description, with IDs, names and available file metadata |
 | `get_item_image` | Return an attached PNG, JPEG, GIF or WebP as MCP image content for visual analysis (max 5 MiB) |
 | `get_user` | Get user details |
+
+`list_trackers` also calls `GET /v3/trackers/tree?projectId=...` to populate the
+Folder column. Nested folders are joined with ` / `; child trackers inherit
+their ancestor folders without adding parent tracker names. `/` means the
+tracker is at the root; `Unknown` means it was not found in the tree. The tree
+endpoint must be available and accessible; lookup failures are reported as tool errors.
 
 ### Write
 

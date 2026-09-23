@@ -27,6 +27,14 @@ export interface CbTracker {
   project?: CbReference;
   description?: string;
   keyName?: string;
+  folderPath?: string;
+}
+
+export interface CbTrackerTree {
+  isFolder?: boolean;
+  text?: string;
+  trackerId?: number;
+  children?: CbTrackerTree[];
 }
 
 export interface CbTrackerField {
@@ -241,7 +249,31 @@ export class CodebeamerClient {
       params: { page, pageSize },
       resource: `trackers for project ${projectId}`,
     });
-    return toArray(raw);
+    const trackers = toArray<CbTracker>(raw);
+    if (trackers.length === 0) return trackers;
+
+    const tree = await this.http.get<CbTrackerTree[]>("/trackers/tree", {
+      params: { projectId },
+      resource: `tracker tree for project ${projectId}`,
+    });
+    const folderPaths = new Map<number, string>();
+    function visit(nodes: CbTrackerTree[], folders: string[]): void {
+      for (const node of nodes) {
+        const path = node.isFolder && node.text
+          ? [...folders, node.text]
+          : folders;
+        if (!node.isFolder && node.trackerId !== undefined) {
+          folderPaths.set(node.trackerId, path.join(" / ") || "/");
+        }
+        if (node.children) visit(node.children, path);
+      }
+    }
+    visit(tree, []);
+
+    return trackers.map((tracker) => ({
+      ...tracker,
+      folderPath: folderPaths.get(tracker.id),
+    }));
   }
 
   getTracker(id: number): Promise<CbTracker> {

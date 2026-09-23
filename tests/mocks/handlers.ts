@@ -21,6 +21,12 @@ export const handlers = [
     HttpResponse.json([makeTracker()]),
   ),
 
+  http.get(`${BASE}/trackers/tree`, () =>
+    HttpResponse.json([
+      { isFolder: true, text: "Development", children: [{ trackerId: 100 }] },
+    ]),
+  ),
+
   http.get(`${BASE}/trackers/:id/fields`, () =>
     HttpResponse.json([
       makeTrackerField(),
