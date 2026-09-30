@@ -12,7 +12,7 @@ An MCP (Model Context Protocol) server for Codebeamer ALM. Allows Claude and oth
 |---|---|
 | `list_projects` | List all projects |
 | `get_project` | Get project details |
-| `list_trackers` | List trackers in a project with folder paths and color-based status |
+| `list_trackers` | List trackers in a project with folder paths |
 | `get_tracker` | Get tracker details including color-based status |
 | `list_tracker_items` | List items in a tracker |
 | `search_items` | Full-text / cbQL search |
@@ -26,21 +26,24 @@ An MCP (Model Context Protocol) server for Codebeamer ALM. Allows Claude and oth
 | `get_item_image` | Return an attached PNG, JPEG, GIF or WebP as MCP image content for visual analysis (max 5 MiB) |
 | `get_user` | Get user details |
 
-Both tracker tools fetch `GET /v3/tracker/{trackerId}/configuration` and match
+Only `get_tracker` fetches `GET /v3/tracker/{trackerId}/configuration` and matches
 `basicInformation.color` against `choiceOptionSetting.choiceOptions[].color`
 of the Status field (`referenceId: 7`). A unique match supplies the status name
 and ID, labeled `Status (color-based)`. Colors are compared case-insensitively
 with surrounding whitespace ignored. Missing or unmatched colors and multiple
 matches produce `Unknown`. This is an inference based on a team's color convention,
 not an authoritative tracker workflow state or an item's current status.
-Listing trackers adds one configuration request per returned tracker;
-configuration lookup errors (including permission errors) fail the lookup.
+Configuration lookup errors (including permission errors) fail `get_tracker`,
+but do not affect `list_trackers`, which does not fetch configurations or display
+color-based status.
 
 `list_trackers` also calls `GET /v3/trackers/tree?projectId=...` to populate the
 Folder column. Nested folders are joined with ` / `; child trackers inherit
 their ancestor folders without adding parent tracker names. `/` means the
 tracker is at the root; `Unknown` means it was not found in the tree. The tree
 endpoint must be available and accessible; lookup failures are reported as tool errors.
+Excluding retries, a nonempty list takes two API requests regardless of page size:
+one for the tracker list and one for the folder tree. An empty list takes only one.
 
 ### Write
 
@@ -107,6 +110,12 @@ responses up to 3 times after the initial request (4 attempts total).
 
 Retries are per request; this does not impose a shared rate limit on concurrent
 tool calls. No additional environment variables are required.
+
+If `list_trackers` repeatedly returns HTTP 429, avoid concurrent tool calls and
+wait for the server's cooldown before retrying. Listing no longer makes per-tracker
+configuration requests, but server-side requests-per-minute or account-wide limits
+still apply. If listing fails after the cooldown, check Codebeamer or reverse-proxy
+rate limits and other clients using the same account with your administrator.
 
 ## Installation
 

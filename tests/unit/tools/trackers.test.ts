@@ -21,6 +21,30 @@ function makeClient() {
 }
 
 describe("list_trackers", () => {
+  it("lists 100 trackers with only list and tree requests, preserving order", async () => {
+    const trackers = Array.from({ length: 100 }, (_, index) => makeTracker({ id: index + 100 }));
+    const requests: string[] = [];
+    mockServer.use(
+      http.get(`${BASE}/projects/:projectId/trackers`, ({ request }) => {
+        requests.push("list");
+        expect(new URL(request.url).searchParams.get("pageSize")).toBe("100");
+        return HttpResponse.json(trackers);
+      }),
+      http.get(`${BASE}/trackers/tree`, () => {
+        requests.push("tree");
+        return HttpResponse.json([]);
+      }),
+      http.get(`${BASE}/tracker/:id/configuration`, () => {
+        requests.push("configuration");
+        return HttpResponse.json({});
+      }),
+    );
+
+    const result = await makeClient().listTrackers(18, 1, 100);
+    expect(requests).toEqual(["list", "tree"]);
+    expect(result).toEqual(trackers.map((tracker) => ({ ...tracker, folderPath: undefined })));
+  });
+
   it("returns formatted tracker list", async () => {
     const client = makeClient();
     const result = await client.listTrackers(1, 1, 25);
@@ -32,9 +56,9 @@ describe("list_trackers", () => {
     expect(text).toContain("100");
     expect(text).toContain("| Folder |");
     expect(text).toContain("| Development |");
-    expect(result[0].status).toEqual({ id: 4, name: "Spec Out" });
-    expect(text).toContain("Status (color-based)");
-    expect(text).toContain("Spec Out (ID: 4)");
+    expect(result[0].status).toBeUndefined();
+    expect(text).not.toContain("Status (color-based)");
+    expect(text).not.toContain("Spec Out (ID: 4)");
   });
 
   it("maps nested folders through tracker children without changing list order", async () => {
@@ -141,9 +165,10 @@ describe("get_tracker", () => {
 });
 
 describe("tracker color-based status", () => {
-  it("escapes status names in the markdown table", () => {
-    const text = formatTrackerList([makeTracker({ status: { id: 4, name: "Spec | Out\r\nReview" } })]);
-    expect(text).toContain("| Spec \\| Out Review (ID: 4) |");
+  it("omits color-based status from the list even when supplied", () => {
+    const text = formatTrackerList([makeTracker({ status: { id: 4, name: "Spec Out" } })]);
+    expect(text).not.toContain("Status (color-based)");
+    expect(text).not.toContain("Spec Out");
   });
 
   const statusField = {
@@ -190,26 +215,17 @@ describe("tracker color-based status", () => {
     const tracker = await makeClient().getTracker(100);
     expect(tracker.status).toBeUndefined();
     expect(formatTracker(tracker, [])).toContain("**Status (color-based):** Unknown");
-    expect(formatTrackerList([tracker])).toContain("| Unknown |");
   });
 
-  it("uses each tracker's configuration when listing trackers", async () => {
-    mockServer.use(
-      http.get(`${BASE}/projects/:projectId/trackers`, () => HttpResponse.json([
-        makeTracker({ id: 100 }), makeTracker({ id: 101 }),
-      ])),
-      http.get(`${BASE}/tracker/:id/configuration`, ({ params }) => HttpResponse.json({
-        basicInformation: { color: params.id === "100" ? "#ababab" : "#ffffff" },
-        fields: [statusField],
-      })),
-    );
-    const trackers = await makeClient().listTrackers(1, 1, 25);
-    expect(trackers.map((tracker) => tracker.status)).toEqual([{ id: 4, name: "Spec Out" }, undefined]);
-  });
-
-  it("propagates configuration lookup failures for detail and list", async () => {
-    mockServer.use(http.get(`${BASE}/tracker/:id/configuration`, () => new HttpResponse(null, { status: 403 })));
-    await expect(makeClient().getTracker(100)).rejects.toThrow();
-    await expect(makeClient().listTrackers(1, 1, 25)).rejects.toThrow();
+  it.each([403, 429])("configuration HTTP %s affects detail but not list", async (status) => {
+    let configurationRequests = 0;
+    mockServer.use(http.get(`${BASE}/tracker/:id/configuration`, () => {
+      configurationRequests++;
+      return new HttpResponse(null, { status, headers: { "Retry-After": "60" } });
+    }));
+    await expect(makeClient().listTrackers(1, 1, 25)).resolves.toHaveLength(1);
+    expect(configurationRequests).toBe(0);
+    await expect(makeClient().getTracker(100)).rejects.toMatchObject({ status });
+    expect(configurationRequests).toBe(1);
   });
 });

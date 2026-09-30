@@ -17,8 +17,7 @@ export function registerTrackerTools(
       description:
         "List all trackers (Requirements, Bugs, Test Cases, etc.) in a Codebeamer project. " +
         "Includes folder paths from the project tracker tree; '/' means root and 'Unknown' means absent from the tree. " +
-        "Includes color-based status inferred by matching the tracker color to a unique Status option in its configuration. " +
-        "This is not an authoritative workflow state; missing or ambiguous matches are Unknown. " +
+        "Does not fetch per-tracker configurations; use get_tracker for color-based status. " +
         "Use the returned tracker IDs to list items or get tracker details.",
       inputSchema: {
         projectId: z

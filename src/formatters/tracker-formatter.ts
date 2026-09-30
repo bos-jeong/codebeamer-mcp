@@ -11,13 +11,13 @@ export function formatTrackerList(trackers: CbTracker[]): string {
 
   const rows = trackers.map(
     (t) =>
-      `| ${t.id} | ${t.name} | ${t.type?.name ?? "-"} | ${t.keyName ?? "-"} | ${(t.folderPath ?? "Unknown").replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ")} | ${formatTrackerStatus(t).replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ")} |`,
+      `| ${t.id} | ${t.name} | ${t.type?.name ?? "-"} | ${t.keyName ?? "-"} | ${(t.folderPath ?? "Unknown").replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ")} |`,
   );
 
   return [
     header,
-    "| ID | Name | Type | Key | Folder | Status (color-based) |",
-    "|----|------|------|-----|--------|----------------------|",
+    "| ID | Name | Type | Key | Folder |",
+    "|----|------|------|-----|--------|",
     ...rows,
   ].join("\n");
 }

@@ -282,10 +282,10 @@ export class CodebeamerClient {
     }
     visit(tree, []);
 
-    return Promise.all(trackers.map((tracker) => this.withTrackerStatus({
+    return trackers.map((tracker) => ({
       ...tracker,
       folderPath: folderPaths.get(tracker.id),
-    })));
+    }));
   }
 
   async getTracker(id: number): Promise<CbTracker> {
