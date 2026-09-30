@@ -28,6 +28,18 @@ export interface CbTracker {
   description?: string;
   keyName?: string;
   folderPath?: string;
+  color?: string;
+  status?: CbReference;
+}
+
+export interface CbTrackerConfiguration {
+  basicInformation?: { color?: string };
+  fields?: Array<{
+    referenceId: number;
+    choiceOptionSetting?: {
+      choiceOptions?: Array<{ id: number; name: string; color?: string }>;
+    };
+  }>;
 }
 
 export interface CbTrackerTree {
@@ -270,14 +282,33 @@ export class CodebeamerClient {
     }
     visit(tree, []);
 
-    return trackers.map((tracker) => ({
+    return Promise.all(trackers.map((tracker) => this.withTrackerStatus({
       ...tracker,
       folderPath: folderPaths.get(tracker.id),
-    }));
+    })));
   }
 
-  getTracker(id: number): Promise<CbTracker> {
-    return this.http.get(`/trackers/${id}`, { resource: `tracker ${id}` });
+  async getTracker(id: number): Promise<CbTracker> {
+    const tracker = await this.http.get<CbTracker>(`/trackers/${id}`, { resource: `tracker ${id}` });
+    return this.withTrackerStatus(tracker);
+  }
+
+  private async withTrackerStatus(tracker: CbTracker): Promise<CbTracker> {
+    const configuration = await this.http.get<CbTrackerConfiguration>(
+      `/tracker/${tracker.id}/configuration`,
+      { resource: `configuration for tracker ${tracker.id}` },
+    );
+    const color = configuration.basicInformation?.color;
+    const normalizedColor = color?.trim().toLowerCase();
+    const options = configuration.fields?.find((field) => field.referenceId === 7)
+      ?.choiceOptionSetting?.choiceOptions ?? [];
+    const matches = normalizedColor
+      ? options.filter((option) => option.color?.trim().toLowerCase() === normalizedColor)
+      : [];
+    const status = matches.length === 1
+      ? { id: matches[0].id, name: matches[0].name }
+      : undefined;
+    return { ...tracker, color, status };
   }
 
   getTrackerFields(id: number): Promise<CbTrackerField[]> {

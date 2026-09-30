@@ -11,15 +11,21 @@ export function formatTrackerList(trackers: CbTracker[]): string {
 
   const rows = trackers.map(
     (t) =>
-      `| ${t.id} | ${t.name} | ${t.type?.name ?? "-"} | ${t.keyName ?? "-"} | ${(t.folderPath ?? "Unknown").replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ")} |`,
+      `| ${t.id} | ${t.name} | ${t.type?.name ?? "-"} | ${t.keyName ?? "-"} | ${(t.folderPath ?? "Unknown").replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ")} | ${formatTrackerStatus(t).replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ")} |`,
   );
 
   return [
     header,
-    "| ID | Name | Type | Key | Folder |",
-    "|----|------|------|-----|--------|",
+    "| ID | Name | Type | Key | Folder | Status (color-based) |",
+    "|----|------|------|-----|--------|----------------------|",
     ...rows,
   ].join("\n");
+}
+
+function formatTrackerStatus(tracker: CbTracker): string {
+  return tracker.status
+    ? `${tracker.status.name} (ID: ${tracker.status.id})`
+    : "Unknown";
 }
 
 function extractDescription(desc: CbItem["description"]): string {
@@ -41,6 +47,7 @@ export function formatTracker(
     `- **ID:** ${tracker.id}`,
     `- **Type:** ${tracker.type?.name ?? "?"}`,
     `- **Project:** ${tracker.project?.name ?? "?"} (ID: ${tracker.project?.id ?? "?"})`,
+    `- **Status (color-based):** ${formatTrackerStatus(tracker)}`,
   ];
 
   if (tracker.keyName) {

@@ -200,6 +200,25 @@ const server = createServer((req, res) => {
     }]);
   }
 
+  const trackerConfigurationMatch = path.match(/^\/v3\/tracker\/(\d+)\/configuration$/);
+  if (trackerConfigurationMatch) {
+    const tracker = trackers.find(tracker => tracker.id === Number(trackerConfigurationMatch[1]));
+    if (!tracker) return notFound(res, `Tracker ${trackerConfigurationMatch[1]} not found`);
+    return json(res, {
+      basicInformation: { trackerId: tracker.id, color: "#ababab" },
+      fields: [{
+        referenceId: 7,
+        choiceOptionSetting: {
+          type: "CHOICE_OPTIONS",
+          choiceOptions: [
+            { id: 1, name: "Draft", color: "#b31317" },
+            { id: 4, name: "Spec Out", color: "#ababab" },
+          ],
+        },
+      }],
+    });
+  }
+
   // Tracker fields
   const trackerFieldsMatch = path.match(/^\/v3\/trackers\/(\d+)\/fields$/);
   if (trackerFieldsMatch) {

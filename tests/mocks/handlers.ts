@@ -27,6 +27,21 @@ export const handlers = [
     ]),
   ),
 
+  http.get(`${BASE}/tracker/:id/configuration`, () =>
+    HttpResponse.json({
+      basicInformation: { color: "#ababab" },
+      fields: [{
+        referenceId: 7,
+        choiceOptionSetting: {
+          choiceOptions: [
+            { id: 1, name: "Draft", color: "#b31317" },
+            { id: 4, name: "Spec Out", color: "#ababab" },
+          ],
+        },
+      }],
+    }),
+  ),
+
   http.get(`${BASE}/trackers/:id/fields`, () =>
     HttpResponse.json([
       makeTrackerField(),
