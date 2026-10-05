@@ -42,13 +42,13 @@ describe("HttpClient binary downloads", () => {
     mockServer.use(http.get(`${BASE}/image`, () => new HttpResponse("small", {
       headers: { "Content-Length": String(MAX_ATTACHMENT_BYTES + 1) },
     })));
-    await expect(client.getBinary("/image")).rejects.toThrow("5 MiB");
+    await expect(client.getBinary("/image")).rejects.toThrow("50 MiB");
   });
 
   it("enforces the limit even without content-length", async () => {
     mockServer.use(http.get(`${BASE}/image`, () =>
       new HttpResponse(new Uint8Array(MAX_ATTACHMENT_BYTES + 1)),
     ));
-    await expect(client.getBinary("/image")).rejects.toThrow("5 MiB");
+    await expect(client.getBinary("/image")).rejects.toThrow("50 MiB");
   });
 });

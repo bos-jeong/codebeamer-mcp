@@ -12,7 +12,7 @@ export interface BodyRequestOptions extends RequestOptions {
   formData?: Record<string, string>;
 }
 
-export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+export const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 
 const MAX_RATE_LIMIT_RETRIES = 3;
 const MAX_RETRY_WAIT_MS = 30_000;
@@ -55,7 +55,7 @@ export class HttpClient {
     let size = 0;
     try {
       if (Number(response.headers.get("content-length")) > MAX_ATTACHMENT_BYTES) {
-        throw new Error("Attachment exceeds the 5 MiB download limit.");
+        throw new Error("Attachment exceeds the 50 MiB download limit.");
       }
       if (reader) {
         while (true) {
@@ -63,7 +63,7 @@ export class HttpClient {
           if (done) break;
           size += value.byteLength;
           if (size > MAX_ATTACHMENT_BYTES) {
-            throw new Error("Attachment exceeds the 5 MiB download limit.");
+            throw new Error("Attachment exceeds the 50 MiB download limit.");
           }
           chunks.push(value);
         }

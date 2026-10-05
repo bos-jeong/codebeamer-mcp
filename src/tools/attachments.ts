@@ -39,7 +39,7 @@ export function registerAttachmentTools(server: McpServer, client: CodebeamerCli
       description:
         "Download an image attachment from a Codebeamer tracker item and return actual image content " +
         "for visual analysis. First use list_item_attachments to find the attachment ID. " +
-        "Supports PNG, JPEG, GIF and WebP up to 5 MiB. " +
+        "Supports PNG, JPEG, GIF and WebP up to 50 MiB. " +
         "Does not render editable diagram source files, SVG, or external image URLs.",
       inputSchema: {
         itemId: z.number().int().positive().describe("Numeric item ID"),
