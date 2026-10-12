@@ -1,6 +1,6 @@
 {
-  "name": "codebeamer-mcp",
-  "version": "0.5.2",
+  "name": "codebeamer-mcp-bos",
+  "version": "1.0.0",
   "description": "MCP server for Codebeamer ALM with read and write capabilities",
   "license": "MIT",
   "type": "module",
@@ -13,7 +13,10 @@
     }
   },
   "bin": {
-    "codebeamer-mcp": "dist/index.js"
+    "codebeamer-mcp-bos": "dist/index.js"
+  },
+  "publishConfig": {
+    "registry": "http://registry.corp.bos-semi.com/repository/bos-npm-hosted/"
   },
   "files": [
     "dist",
